@@ -1,14 +1,18 @@
 ##################################
 ##Author:  Sushma Kalle    	 	##
-##@Input:  Operation    	 	##
+##@Input:  Ladder Logic	   	 	##
 ##@Output: Instruction List   	##
 ##################################
 
 import math
+import pyshark
 import sys
 import os,errno
 import numpy as np
 import re
+import MySQLdb
+import base64
+import binascii
 from collections import defaultdict
 
 temp = "c490"
@@ -53,7 +57,6 @@ def convert(hexcode,htype):
 
 	return ret
 def parseMemWords(s):
-
 	three = 0
 	length = s[2:4]
 	operation = s[8:10]
@@ -154,7 +157,6 @@ def parseEqs(st):
 			if len(st[fl_len:]) > 5:
 				parseEqs(st[fl_len:])
 			line.append(templ)
-
 def parse(st):
 	parseEqs(st)
 	utilized = {}
@@ -167,7 +169,11 @@ def parse(st):
 				if temp in li:
 					if li.find(temp) < li.find("="):
 						if li.find(temp,li.find(temp)+1) > li.find("="):
-							utilized[temp] = li[li.find('=')+1:]
+							if temp in utilized:
+								just = utilized[temp]
+								utilized[temp] = just.replace(temp,'( ' + li[li.find('=')+1:] + ' )')
+							else:
+								utilized[temp] = li[li.find('=')+1:]
 						else:
 							initialized[temp] = li[li.find('=')+1:]
 					else:
@@ -179,17 +185,18 @@ def parse(st):
 			for k,val in utilized.items():
 				if key in val:
 					utilized[k] = utilized[k].replace(key,'( '+ value + ' )')
-
-	
 		for key,value in utilized.items():
 			for k,val in assigned.items():
 				if key in val:
-					assigned[k] = assigned[k].replace(key, value )
+					assigned[k] = assigned[k].replace(key,  value  )
 		for key,value in initialized.items():
 			for k,val in assigned.items():
 				if key in val:
-					assigned[k] = assigned[k].replace(key, value )
+					assigned[k] = assigned[k].replace(key,'( '+ value + ' )')
 		final = '[ ' + assigned[final] + ' ]'
 	else:
 		final = '[ ' + line[0] + ' ]'	
+	print final
 	return final
+	
+parse(sys.argv[1]) 
