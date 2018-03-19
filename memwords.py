@@ -5,14 +5,10 @@
 ##################################
 
 import math
-import pyshark
 import sys
 import os,errno
 import numpy as np
 import re
-import MySQLdb
-import base64
-import binascii
 from collections import defaultdict
 
 temp = "c490"
@@ -57,7 +53,7 @@ def convert(hexcode,htype):
 
 	return ret
 def parseMemWords(s):
-	#7F1A05141A028102810100
+
 	three = 0
 	length = s[2:4]
 	operation = s[8:10]
@@ -196,5 +192,4 @@ def parse(st):
 		final = '[ ' + assigned[final] + ' ]'
 	else:
 		final = '[ ' + line[0] + ' ]'	
-
 	return final
