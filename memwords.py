@@ -193,11 +193,8 @@ def parse(st):
 			for k,val in assigned.items():
 				if key in val:
 					assigned[k] = assigned[k].replace(key, value )
-	#	print assigned
-	#	print initialized
-	#	print utilized
 		final = '[ ' + assigned[final] + ' ]'
 	else:
 		final = '[ ' + line[0] + ' ]'	
-	print final
+
 	return final
