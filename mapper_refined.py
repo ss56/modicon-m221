@@ -1,8 +1,8 @@
-###################################
-##Author:  Sushma Kalle    	 ##
-##@Input:  Ladder Logic	   	 ##
-##@Output: Instruction List   	 ##
-###################################
+##################################
+##Author:  Sushma Kalle    	 	##
+##@Input:  Ladder Logic	   	 	##
+##@Output: Instruction List   	##
+##################################
 
 import pyshark
 import sys
@@ -11,7 +11,10 @@ import numpy as np
 import extractor_refined
 import re
 import MySQLdb
+import memwords
 from operator import itemgetter
+
+
 
 
 def rreplace(s, old, new, occurrence):
@@ -22,9 +25,7 @@ def llToRungs(ll,rows,delimiters):
 	ll 		= ll[:-2]
 	ends 	= []
 	rungs 	= []
-	end_l	= ''
-	start_l	= ''
-	ins_e	= ''
+	end_l	= start_l	= ins_e	= ''
 	cut_iter= 0
 #	print len(ll)
 	for row in rows:
@@ -69,8 +70,9 @@ def llToRungs(ll,rows,delimiters):
 	
 
 start = 0
+flag = 0
 ll = extractor_refined.ladder_logic
-
+print ll
 db = MySQLdb.connect(host="localhost",  # host 
                      user="root",       # username
                      passwd="12345",    # password
@@ -79,25 +81,61 @@ db = MySQLdb.connect(host="localhost",  # host
 cur = db.cursor() 
 
 code_list = ''
+thisline = ''
+
 #print ll
 print "*****************************************"
 cur.execute("select op_code,instruction,output from instructions")
 rows = cur.fetchall()
 cur.execute("select op_code,delimiter,category from delimiters")
 delimiters = cur.fetchall()
+cur.execute("select operation from operations")
+operations = cur.fetchall()
 #ll = "LD" + ll
 rungs,start_l = llToRungs(ll,rows,delimiters)
-print start_l
 #rungs_count = len(rungs)
 #print rungs
 #for offset,rung in rungs:
 	#print "'" + row[0] + "'"
+
+
+def memOperationRung(rung,op):
+	global thisline
+	global flag
+	length = ''
+	length = rung[rung.find(op)-2:rung.find(op)]
+	if rung[rung.find(op)-6:rung.find(op)-4] == '03' or flag == 1:
+		flag = 1
+		offset = rung.find(op)+int(length,16)*2 - 4 
+		thisline = thisline + rung[rung.find(op)-4:offset]
+		if rung[offset:offset+2] == '03' or not rung.find('7f1a',offset):
+			return thisline
+		else:
+			memOperationRung(rung,rung.find('7f1a',offset))
+		
+returnIns = ''
 for rung in rungs:
-	blk_t = 0;
+	global line
+	global flag
+				 
+	blk_t = 0
 	if rung != '':	
 		j = 0
-		#rung = "LD" + rung.strip()
-		for row in rows:
+		for op in operations:
+			if op[0] in rung:
+				 st = memOperationRung(rung,op[0])
+				 flag = 0
+				 thisline = ''
+				 rep = memwords.parse(st)
+				 if rung[rung.find(op[0])-8:rung.find(op[0])-4] == '0303':
+				 	rep = "OPER "+rep
+				 	which = r'....'+st+'..'
+				 else:
+				 	rep = "AND "+rep
+				 	which = r'..'+st+'..'
+				 rung = re.sub(which, rep + '\n', rung)
+			
+		for row in rows:				
 			if row[0] in rung and row[2] == 0:
 				rung = rung.replace(row[0],row[1]+"\n")
 			if row[0] in rung and row[2] ==1:	
@@ -107,6 +145,7 @@ for rung in rungs:
 			if row[0] in rung and row[2] == 3:
 				rung = rung.replace(row[0], row[1])
 		ins = rung.split("\n")
+		returnIns = returnIns + "\n" + rung
 		if start_l in ins[0]:
 			ins[1] = "LD" + ins[1]
 		else:
@@ -115,8 +154,7 @@ for rung in rungs:
 			print  "%04d  | " % j + inst 
 			j = j+1
 		print "---------------------------"	
-		
-#print code_list
+		#print code_list
 
 print "*****************************************"
 
