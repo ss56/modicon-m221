@@ -62,7 +62,7 @@ for i in range (0, len(cap)):
     try:	
 	data = cap[i]
 	#Searching for the packet which contains M221, as the Ladder Logic starts in the next response packet  
-	if "09:be:09:ff" in str(data):
+	if "be:09:ff" in str(data):
 		#Sending the packet to read the next response packet for ladder logic
 		config_data = cap[i][24:]
 		readLadderLogic(cap,i)

@@ -5,10 +5,10 @@
 ##################################
 
 import math
-import pyshark
 import sys
 import os,errno
 import numpy as np
+#import extractor_refined
 import re
 import MySQLdb
 import base64
@@ -20,9 +20,11 @@ tempf = 'c290'
 line = []
 templ = ''
 tempvals = ['c290','c490','bc90']
+flag = 0
 
 def convert(hexcode,htype):
 	ret = ''
+	
 	if(htype == '14'):
 		number = hexcode[2:4] + hexcode[0:2]
 		number = int(number,16)
@@ -54,9 +56,16 @@ def convert(hexcode,htype):
 		F = bit[9:].replace(' ','0')
 		number = ( math.pow((-1),int(sign)) ) * ( 1 + (int(F,2) * math.pow(2,-23))) * math.pow(2,(int(E,2) - 127))
 		ret = str(round(number,7))
-
+	elif htype == '16':
+		if hexcode == 'b491':
+			ret = '%IW1.0'
+	if hexcode == '0c92':
+		ret = '%QWE0'
+	elif hexcode == '0e92':
+		ret = '%QWE1'
 	return ret
 def parseMemWords(s):
+	#7F1A05141A028102810100
 	three = 0
 	length = s[2:4]
 	operation = s[8:10]
@@ -113,7 +122,7 @@ def parseMemFloats(s):
 							'3c' : '/' ,
 							'86' : ':='
 					 	}
-	if operation >= 51 and operation <=56:
+	if operation >= 51 and operation <=56  or operation == 134:
 		first = convert(s[18:22],'32')
 		second = convert(s[22:22+op_type[second_type]],second_type)
 		result =   first + "  " + operation_options[op] + '  ' + second
@@ -158,45 +167,55 @@ def parseEqs(st):
 				parseEqs(st[fl_len:])
 			line.append(templ)
 def parse(st):
-	parseEqs(st)
-	utilized = {}
-	initialized = {}
-	assigned = {}
-	final = ''
-	if len(line) > 1:
-		for li in line:
-			for temp in tempvals:
-				if temp in li:
-					if li.find(temp) < li.find("="):
-						if li.find(temp,li.find(temp)+1) > li.find("="):
-							if temp in utilized:
-								just = utilized[temp]
-								utilized[temp] = just.replace(temp,'( ' + li[li.find('=')+1:] + ' )')
+	try:
+
+		global line
+		#print st
+		parseEqs(st.strip())
+		utilized = {}
+		initialized = {}
+		assigned = {}
+		final = ''
+		if len(line) > 1:
+			for li in line:
+				for temp in tempvals:
+					if temp in li:
+						if li.find(temp) < li.find("="):
+							if li.find(temp,li.find(temp)+1) > li.find("="):
+								if temp in utilized:
+									just = utilized[temp]
+									utilized[temp] = just.replace(temp,'( ' + li[li.find('=')+1:] + ' )')
+								else:
+									utilized[temp] = li[li.find('=')+1:]
 							else:
-								utilized[temp] = li[li.find('=')+1:]
+								initialized[temp] = li[li.find('=')+1:]
 						else:
-							initialized[temp] = li[li.find('=')+1:]
-					else:
-						if li[:li.find('=')-2] not in tempvals:
-							assigned[li[:li.find('=')-2]] = li
-							final = li[:li.find('=')-2]
-				
-		for key,value in initialized.items():
-			for k,val in utilized.items():
-				if key in val:
-					utilized[k] = utilized[k].replace(key,'( '+ value + ' )')
-		for key,value in utilized.items():
-			for k,val in assigned.items():
-				if key in val:
-					assigned[k] = assigned[k].replace(key,  value  )
-		for key,value in initialized.items():
-			for k,val in assigned.items():
-				if key in val:
-					assigned[k] = assigned[k].replace(key,'( '+ value + ' )')
-		final = '[ ' + assigned[final] + ' ]'
-	else:
-		final = '[ ' + line[0] + ' ]'	
-	print final
-	return final
+							if li[:li.find('=')-2] not in tempvals:
+								assigned[li[:li.find('=')-2]] = li
+								final = li[:li.find('=')-2]
+			try:		
+				for key,value in initialized.items():
+					for k,val in utilized.items():
+						if key in val:
+							utilized[k] = utilized[k].replace(key,'( '+ value + ' )')
+				for key,value in utilized.items():
+					for k,val in assigned.items():
+						if key in val:
+							assigned[k] = assigned[k].replace(key,  value  )
+				for key,value in initialized.items():
+					for k,val in assigned.items():
+						if key in val:
+							assigned[k] = assigned[k].replace(key,'( '+ value + ' )')
+				final = '[ ' + assigned[final] + ' ]'
+				line = []
+			except KeyError as e:
+				print str(e) + st + "im here again"
+		else:
+			final = '[ ' + line[0] + ' ]'	
+			line = []
+		
+		return final
+	except AttributeError as ae1:
+		pass
 	
-parse(sys.argv[1]) 
+#parse(sys.argv[1]) 
